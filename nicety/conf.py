@@ -1,7 +1,7 @@
 import copy
 import argparse
 from omegaconf import OmegaConf
-from typing import List, Optional
+from typing import List, Optional, Union
 
 
 class DotDict(dict):
@@ -71,7 +71,7 @@ def dotdict_to_dict(d: DotDict) -> dict:
         return d
 
 
-def get_conf(configs: Optional[List[str]] = None) -> DotDict:
+def get_conf(configs: Optional[Union[str, List[str]]] = None) -> DotDict:
     if configs is None:
         parser = argparse.ArgumentParser()
         parser.add_argument(
@@ -85,6 +85,8 @@ def get_conf(configs: Optional[List[str]] = None) -> DotDict:
 
         confs = [OmegaConf.load(c) for c in args.config]
     else:
+        if isinstance(configs, str):
+            configs = [configs]
         confs = [OmegaConf.load(c) for c in configs]
 
     conf = OmegaConf.merge(*confs)
