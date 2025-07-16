@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Union
+from typing import List, Union, Tuple, Any
 
 
 def pad_slice(
@@ -90,3 +90,24 @@ def pad_slice(
     output[:] = np.pad(vol[tuple(input_slices)], pad_widths, mode=mode)
 
     return output
+
+
+def reshape_list(data: List[Any], shape: Tuple[int, ...]) -> List[Any]:
+    """
+    Reshapes a list of data into a nested list of the given shape
+
+    Parameters
+    ----------
+    data
+    shape
+    """
+    assert len(shape) > 0
+    if len(shape) == 1:
+        assert len(data) == shape[0]
+        return data
+    else:
+        num_elements = np.prod(shape[1:])
+        return [
+            reshape_list(data[i * num_elements : (i + 1) * num_elements], shape[1:])
+            for i in range(shape[0])
+        ]
