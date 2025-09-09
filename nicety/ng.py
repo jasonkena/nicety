@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 # NOTE: all this expects volumes to either be [Z, Y, X] or [C, Z, Y, X]
 # cloudvolume just expects [Z, Y, X, C] internally
 
+
 def get_free_port(ip: str) -> int:
     # https://stackoverflow.com/a/61685162/10702372
     with socketserver.TCPServer((ip, 0), None) as s:
@@ -114,10 +115,11 @@ def to_precomputed(
     anisotropy: List[float] = [1.0, 1.0, 1.0],
     chunk_size: List[int] = [256, 256, 256],
     downsample_factors: List[List[int]] = [],
+    enable_mesh: bool = False,
     mesh_mip: int = 0,
     mesh_merge_magnitude: int = 3,
     enable_skeletons: bool = False,
-    n_jobs: int = -1,
+    n_jobs: int = os.cpu_count(),
 ):
     """
     Converts a numpy-like array to a cloudvolume precomputed layer.
@@ -148,7 +150,7 @@ def to_precomputed(
     if enable_skeletons:
         assert layer_type == "segmentation"
     cv = initialize_cloudvolume(
-        vol, output_layer, layer_type, anisotropy, chunk_size, enable_skeletons
+        vol, output_layer, layer_type, anisotropy, chunk_size, enable_mesh, enable_skeletons
     )
     write_cloudvolume(output_layer, vol, chunk_size, n_jobs)
     downsample_cloudvolume(
@@ -157,7 +159,7 @@ def to_precomputed(
         downsample_factors=downsample_factors,
         n_jobs=n_jobs,
     )
-    if cv.layer_type == "segmentation":
+    if cv.layer_type == "segmentation" and enable_mesh:
         mesh_cloudvolume(
             output_layer,
             mip=mesh_mip,
@@ -175,6 +177,7 @@ def initialize_cloudvolume(
     layer_type: str,
     anisotropy: List[float],
     chunk_size: List[int],
+    enable_mesh: bool = False,
     enable_skeletons: bool = False,
 ):
     """
@@ -232,7 +235,8 @@ def initialize_cloudvolume(
         "volume_size": shape,
     }
     if layer_type == "segmentation":
-        kwargs["mesh"] = "mesh"
+        if enable_mesh:
+            kwargs["mesh"] = "mesh"
         if enable_skeletons:
             kwargs["skeletons"] = "skeletons"
 
@@ -278,7 +282,7 @@ def write_cloudvolume(
     output_layer: str,
     vol: np.ndarray,
     chunk_size: List[int],
-    n_jobs: int = -1,
+    n_jobs: int = os.cpu_count(),
 ):
     assert vol.ndim in [3, 4], f"Unsupported volume shape: {vol.shape}"
     if vol.ndim == 4:
@@ -302,7 +306,7 @@ def downsample_cloudvolume(
     output_layer: str,
     chunk_size: List[int],
     downsample_factors: List[List[int]],
-    n_jobs: int = -1,
+    n_jobs: int = os.cpu_count(),
 ):
     tq = LocalTaskQueue(parallel=n_jobs)
 
@@ -334,7 +338,7 @@ def mesh_cloudvolume(
     mip: int = 0,
     merge_magnitude: int = 3,
     chunk_size: List[int] = [256, 256, 256],
-    n_jobs: int = -1,
+    n_jobs: int = os.cpu_count(),
 ):
     tq = LocalTaskQueue(parallel=n_jobs)
     layer = f"file://{output_layer}"

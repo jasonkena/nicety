@@ -111,3 +111,57 @@ def reshape_list(data: List[Any], shape: Tuple[int, ...]) -> List[Any]:
             reshape_list(data[i * num_elements : (i + 1) * num_elements], shape[1:])
             for i in range(shape[0])
         ]
+
+
+def smallest_dtype(array: Union[np.ndarray, List[np.ndarray]]) -> np.dtype:
+    """
+    Returns the smallest dtype that can fit all values in the array.
+
+    Args:
+        array: numpy array, array-like, or list of numpy arrays of integral type
+
+    Returns:
+        numpy dtype: smallest dtype that can fit all values
+    """
+    if isinstance(array, np.ndarray):
+        array = np.asarray(array)
+        assert np.issubdtype(array.dtype, np.integer), f"Array must be of integral type, got {array.dtype}"
+        min_val = np.min(array)
+        max_val = np.max(array)
+    else:
+        arrays = [np.asarray(arr) for arr in array]
+        for arr in arrays:
+            assert np.issubdtype(arr.dtype, np.integer), f"Array must be of integral type, got {arr.dtype}"
+        min_val = min(np.min(arr) for arr in arrays)
+        max_val = max(np.max(arr) for arr in arrays)
+
+    # If all values are non-negative, use unsigned types
+    if min_val >= 0:
+        if max_val <= np.iinfo(np.uint8).max:
+            return np.uint8
+        elif max_val <= np.iinfo(np.uint16).max:
+            return np.uint16
+        elif max_val <= np.iinfo(np.uint32).max:
+            return np.uint32
+        else:
+            return np.uint64
+
+    # If there are negative values, use signed types
+    else:
+        if (
+            np.iinfo(np.int8).min <= min_val <= np.iinfo(np.int8).max
+            and max_val <= np.iinfo(np.int8).max
+        ):
+            return np.int8
+        elif (
+            np.iinfo(np.int16).min <= min_val <= np.iinfo(np.int16).max
+            and max_val <= np.iinfo(np.int16).max
+        ):
+            return np.int16
+        elif (
+            np.iinfo(np.int32).min <= min_val <= np.iinfo(np.int32).max
+            and max_val <= np.iinfo(np.int32).max
+        ):
+            return np.int32
+        else:
+            return np.int64
